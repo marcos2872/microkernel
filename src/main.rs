@@ -13,6 +13,7 @@ mod interrupts;
 mod allocator;
 mod memory;
 mod task;
+mod sync;
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
@@ -22,24 +23,58 @@ use spin::Mutex;
 use crate::task::Scheduler;
 use crate::allocator::HEAP_SIZE;
 use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::collections::BTreeMap;
 
 lazy_static! {
     /// O scheduler global.
     static ref SCHEDULER: Mutex<Scheduler> = Mutex::new(Scheduler::new());
 }
 
-/// Ponto de entrada para a primeira tarefa.
-fn task1_entry() -> ! {
-    loop {
-        print!("1");
-    }
+lazy_static! {
+    /// O registro de tarefas global.
+    ///
+    /// Mapeia um nome de serviço para um `TaskId`.
+    static ref TASK_REGISTRY: Mutex<BTreeMap<String, task::TaskId>> =
+        Mutex::new(BTreeMap::new());
 }
 
-/// Ponto de entrada para a segunda tarefa.
-fn task2_entry() -> ! {
-    loop {
-        print!("2");
-    }
+lazy_static! {
+    /// Um semáforo para proteger o acesso à tela.
+    static ref SCREEN_SEMAPHORE: sync::Semaphore = sync::Semaphore::new(1);
+}
+
+use alloc::string::ToString;
+
+fn ping_entry() -> ! {
+    let pong_id = {
+        let registry = TASK_REGISTRY.lock();
+        *registry.get("pong").unwrap()
+    };
+
+    task::send(pong_id, 42);
+
+    let reply = task::receive();
+    SCREEN_SEMAPHORE.down();
+    println!("ping: received reply: {}", reply);
+    SCREEN_SEMAPHORE.up();
+
+    loop {}
+}
+
+fn pong_entry() -> ! {
+    let msg = task::receive();
+    SCREEN_SEMAPHORE.down();
+    println!("pong: received message: {}", msg);
+    SCREEN_SEMAPHORE.up();
+
+    let ping_id = {
+        let registry = TASK_REGISTRY.lock();
+        *registry.get("ping").unwrap()
+    };
+    task::send(ping_id, msg + 1);
+
+    loop {}
 }
 
 /// Handler chamado em caso de erro de alocação de memória.
@@ -112,23 +147,29 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     let p4_table = unsafe { memory::active_level_4_table(phys_mem_offset) };
 
-    let task1_stack = {
+    let ping_stack = {
         let stack = vec![0; 4096].into_boxed_slice();
         let stack_top = VirtAddr::from_ptr(Box::into_raw(stack));
         stack_top
     };
-    let task1 = Task::new(VirtAddr::new(task1_entry as u64), task1_stack, p4_table);
+    let ping_task = Task::new(VirtAddr::new(ping_entry as u64), ping_stack, p4_table);
+    let ping_id = ping_task.id;
 
-    let task2_stack = {
+    let pong_stack = {
         let stack = vec![0; 4096].into_boxed_slice();
         let stack_top = VirtAddr::from_ptr(Box::into_raw(stack));
         stack_top
     };
-    let task2 = Task::new(VirtAddr::new(task2_entry as u64), task2_stack, p4_table);
+    let pong_task = Task::new(VirtAddr::new(pong_entry as u64), pong_stack, p4_table);
+    let pong_id = pong_task.id;
 
     let mut scheduler = SCHEDULER.lock();
-    scheduler.add_task(task1);
-    scheduler.add_task(task2);
+    scheduler.add_task(ping_task);
+    scheduler.add_task(pong_task);
+
+    let mut registry = TASK_REGISTRY.lock();
+    registry.insert("ping".to_string(), ping_id);
+    registry.insert("pong".to_string(), pong_id);
 
     let mut current_task_context = task::TaskContext {
         rsp: VirtAddr::new(0),
