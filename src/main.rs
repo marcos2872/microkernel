@@ -81,6 +81,7 @@ pub fn init_heap(
 entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
+    crate::vga_buffer::disable_cursor();
     clear_screen!();
     println!("Welcome to the microkernel!");
     println!("This is a basic implementation in Rust.");

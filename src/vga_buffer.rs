@@ -2,6 +2,18 @@ use volatile::Volatile;
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use x86_64::instructions::port::Port;
+
+pub fn disable_cursor() {
+    unsafe {
+        let mut port_3d4 = Port::new(0x3D4);
+        let mut port_3d5 = Port::new(0x3D5);
+
+        port_3d4.write(0x0A as u8);
+        let val: u8 = port_3d5.read();
+        port_3d5.write(val | 0x20);
+    }
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
