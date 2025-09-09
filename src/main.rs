@@ -148,16 +148,20 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let p4_table = unsafe { memory::active_level_4_table(phys_mem_offset) };
 
     let ping_stack = {
-        let stack = vec![0; 4096].into_boxed_slice();
-        let stack_top = VirtAddr::from_ptr(Box::into_raw(stack));
+        const STACK_SIZE: usize = 4096;
+        let stack_allocation = vec![0; STACK_SIZE].into_boxed_slice();
+        let stack_ptr = Box::into_raw(stack_allocation) as *mut u8;
+        let stack_top = unsafe { VirtAddr::from_ptr(stack_ptr.add(STACK_SIZE)) };
         stack_top
     };
     let ping_task = Task::new(VirtAddr::new(ping_entry as u64), ping_stack, p4_table);
     let ping_id = ping_task.id;
 
     let pong_stack = {
-        let stack = vec![0; 4096].into_boxed_slice();
-        let stack_top = VirtAddr::from_ptr(Box::into_raw(stack));
+        const STACK_SIZE: usize = 4096;
+        let stack_allocation = vec![0; STACK_SIZE].into_boxed_slice();
+        let stack_ptr = Box::into_raw(stack_allocation) as *mut u8;
+        let stack_top = unsafe { VirtAddr::from_ptr(stack_ptr.add(STACK_SIZE)) };
         stack_top
     };
     let pong_task = Task::new(VirtAddr::new(pong_entry as u64), pong_stack, p4_table);
