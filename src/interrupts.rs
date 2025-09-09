@@ -42,6 +42,8 @@ impl InterruptIndex {
     }
 }
 
+use crate::gdt;
+
 lazy_static! {
     /// A Tabela de Descritores de Interrupção (IDT) global.
     static ref IDT: InterruptDescriptorTable = {
@@ -49,7 +51,10 @@ lazy_static! {
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         idt.page_fault.set_handler_fn(page_fault_handler);
         idt.divide_error.set_handler_fn(division_by_zero_handler);
-        idt.double_fault.set_handler_fn(double_fault_handler);
+        unsafe {
+            idt.double_fault.set_handler_fn(double_fault_handler)
+                .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
+        }
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
         idt

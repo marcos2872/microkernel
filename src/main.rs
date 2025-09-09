@@ -7,6 +7,7 @@
 
 extern crate alloc;
 
+mod gdt;
 mod vga_buffer;
 mod interrupts;
 mod allocator;
@@ -91,6 +92,7 @@ entry_point!(kernel_main);
 
 /// O ponto de entrada principal do kernel.
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
+    gdt::init();
     crate::vga_buffer::disable_cursor();
     clear_screen!();
     println!("Welcome to the microkernel!");
