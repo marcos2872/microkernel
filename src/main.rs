@@ -1,3 +1,5 @@
+//! O ponto de entrada principal e o loop do kernel.
+
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
@@ -21,27 +23,31 @@ use crate::allocator::HEAP_SIZE;
 use alloc::boxed::Box;
 
 lazy_static! {
+    /// O scheduler global.
     static ref SCHEDULER: Mutex<Scheduler> = Mutex::new(Scheduler::new());
 }
 
+/// Ponto de entrada para a primeira tarefa.
 fn task1_entry() -> ! {
     loop {
         print!("1");
     }
 }
 
+/// Ponto de entrada para a segunda tarefa.
 fn task2_entry() -> ! {
     loop {
         print!("2");
     }
 }
 
+/// Handler chamado em caso de erro de alocação de memória.
 #[alloc_error_handler]
 fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
     panic!("allocation error: {:?}", layout)
 }
 
-/// This function is called on panic.
+/// Handler chamado em caso de pânico.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
@@ -49,6 +55,9 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 use x86_64::structures::paging::mapper::MapToError;
+/// Inicializa o heap.
+///
+/// Mapeia as páginas do heap para frames físicos.
 pub fn init_heap(
     mapper: &mut impl Mapper<x86_64::structures::paging::Size4KiB>,
     frame_allocator: &mut impl x86_64::structures::paging::FrameAllocator<x86_64::structures::paging::Size4KiB>,
@@ -80,6 +89,7 @@ pub fn init_heap(
 
 entry_point!(kernel_main);
 
+/// O ponto de entrada principal do kernel.
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     crate::vga_buffer::disable_cursor();
     clear_screen!();
