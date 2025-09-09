@@ -99,6 +99,12 @@ impl Writer {
         }
     }
 
+    pub fn clear_screen(&mut self) {
+        for row in 0..BUFFER_HEIGHT {
+            self.clear_row(row);
+        }
+    }
+
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
@@ -141,4 +147,14 @@ macro_rules! println {
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
+}
+
+#[macro_export]
+macro_rules! clear_screen {
+    () => ($crate::vga_buffer::_clear_screen());
+}
+
+#[doc(hidden)]
+pub fn _clear_screen() {
+    WRITER.lock().clear_screen();
 }
