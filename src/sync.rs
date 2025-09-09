@@ -26,7 +26,7 @@ impl Semaphore {
     /// atual é bloqueada até que outra tarefa chame `up`.
     pub fn down(&self) {
         loop {
-            let mut value = self.counter.load(Ordering::Relaxed);
+            let value = self.counter.load(Ordering::Relaxed);
             if value > 0 {
                 if self.counter.compare_exchange(value, value - 1, Ordering::Acquire, Ordering::Relaxed).is_ok() {
                     return;

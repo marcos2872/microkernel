@@ -94,6 +94,7 @@ unsafe impl<T> Send for UnsafeSendSync<T> {}
 unsafe impl<T> Sync for UnsafeSendSync<T> {}
 
 /// Representa uma tarefa no sistema.
+#[allow(dead_code)]
 pub struct Task {
     /// O ID único da tarefa.
     pub id: TaskId,
