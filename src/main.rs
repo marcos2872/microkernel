@@ -1,66 +1,74 @@
-#![no_std]
-#![no_main]
+#![no_std] // Sem biblioteca padrão - bare metal
+#![no_main] // Sem função main() padrão
 
 use core::panic::PanicInfo;
 
-const MAGIC: u32 = 0x1BADB002;
-const FLAGS: u32 = 0;
-const CHECKSUM: u32 = 0u32.wrapping_sub(MAGIC).wrapping_sub(FLAGS);
+// Constantes para cabeçalho Multiboot
+const MAGIC: u32 = 0x1BADB002; // Número mágico Multiboot
+const FLAGS: u32 = 0; // Flags de configuração
+const CHECKSUM: u32 = 0u32.wrapping_sub(MAGIC).wrapping_sub(FLAGS); // Checksum para validação
 
-#[repr(C)]
-#[repr(align(4))]
+// Estrutura do cabeçalho Multiboot
+#[repr(C)] // Layout compatível com C
+#[repr(align(4))] // Alinhamento de 4 bytes
 struct MultibootHeader {
     magic: u32,
     flags: u32,
     checksum: u32,
 }
 
-#[used]
-#[no_mangle]
-#[link_section = ".multiboot_header"]
+// Cabeçalho Multiboot na seção especial
+#[used] // Força inclusão no binário final
+#[no_mangle] // Não alterar nome no linking
+#[link_section = ".multiboot_header"] // Seção específica no binário
 static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
     magic: MAGIC,
     flags: FLAGS,
     checksum: CHECKSUM,
 };
 
-#[no_mangle]
+// Ponto de entrada do kernel
+#[no_mangle] // Manter nome _start inalterado
 pub extern "C" fn _start() -> ! {
-    // Limpa a tela primeiro - preenche toda a primeira linha com espaços
-    let vga_buffer = 0xb8000 as *mut u8;
+    // Chamada externa C, nunca retorna
+    // Limpa a primeira linha da tela
+    let vga_buffer = 0xb8000 as *mut u8; // Endereço do buffer VGA
     for i in 0..80 {
+        // 80 caracteres por linha
         unsafe {
-            *vga_buffer.offset(i * 2) = b' ';
-            *vga_buffer.offset(i * 2 + 1) = 0x07; // Cinza claro sobre preto
+            *vga_buffer.offset(i * 2) = b' '; // Caractere espaço
+            *vga_buffer.offset(i * 2 + 1) = 0x07; // Atributo: cinza claro sobre preto
         }
     }
 
-    // Escreve a mensagem
+    // Escreve mensagem principal
     let hello = b"*** MICROKERNEL RUST FUNCIONANDO! ***";
     let mut i = 0;
     for &byte in hello.iter() {
         unsafe {
-            *vga_buffer.offset(i as isize * 2) = byte;
-            *vga_buffer.offset(i as isize * 2 + 1) = 0x0F; // Branco sobre preto
+            *vga_buffer.offset(i as isize * 2) = byte; // Caractere
+            *vga_buffer.offset(i as isize * 2 + 1) = 0x0F; // Atributo: branco sobre preto
         }
         i += 1;
     }
 
-    // Adiciona uma segunda linha para confirmar
+    // Adiciona segunda linha com instruções
     let line2 = b"Pressione Ctrl+Alt+G para sair do QEMU";
-    let second_line_offset = 80 * 2; // Segunda linha
+    let second_line_offset = 80 * 2; // Offset para segunda linha (80 chars * 2 bytes)
     for (i, &byte) in line2.iter().enumerate() {
         unsafe {
-            *vga_buffer.offset((second_line_offset + i * 2) as isize) = byte;
+            *vga_buffer.offset((second_line_offset + i * 2) as isize) = byte; // Caractere
             *vga_buffer.offset((second_line_offset + i * 2 + 1) as isize) = 0x0E;
-            // Amarelo sobre preto
+            // Atributo: amarelo sobre preto
         }
     }
 
-    loop {}
+    loop {} // Loop infinito - mantém kernel rodando
 }
 
+// Tratador de pânico personalizado
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    // Recebe info do pânico, nunca retorna
+    loop {} // Loop infinito em caso de pânico
 }
