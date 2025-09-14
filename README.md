@@ -103,6 +103,27 @@ cargo check
    qemu-system-x86_64 -drive file=disk.img,format=raw -nic none
    ```
 
+### Script Automatizado (Recomendado)
+
+Use o script `build-and-run.sh` para automatizar todo o processo:
+
+```bash
+./build-and-run.sh
+```
+
+Este script:
+- Compila o kernel automaticamente
+- Verifica se é um Multiboot válido
+- Atualiza o kernel na imagem de disco existente
+- Inicia o QEMU com a configuração correta
+- Para sair do QEMU: `Ctrl+Alt+G` ou feche a janela
+
+**O script resolve automaticamente:**
+- ✅ Libera dispositivos loop ocupados (`/dev/loop0`) se necessário
+- ✅ Cria o ponto de montagem `/mnt/bootdisk` automaticamente
+- ✅ Verifica se o kernel é Multiboot válido antes de executar
+- ✅ Trata erros de montagem/desmontagem com segurança
+
 ### Método 2: Imagem ISO (Alternativo)
 
 1. **Compilar e preparar estrutura:**

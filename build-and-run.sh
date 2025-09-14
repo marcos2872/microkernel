@@ -43,6 +43,18 @@ fi
 
 # Atualiza o kernel na imagem existente
 echo "🔄 Atualizando kernel na imagem..."
+
+# Libera dispositivos loop ocupados se necessário
+if sudo losetup -a | grep -q disk.img; then
+    echo "⚠️  Liberando dispositivo loop ocupado..."
+    sudo umount /mnt/bootdisk 2>/dev/null || true
+    sudo losetup -d /dev/loop0 2>/dev/null || true
+fi
+
+# Cria ponto de montagem se não existir
+sudo mkdir -p /mnt/bootdisk
+
+# Monta e atualiza o kernel
 sudo losetup -P /dev/loop0 disk.img
 sudo mount /dev/loop0p1 /mnt/bootdisk
 sudo cp target/x86_64-unknown-none/release/microkernel /mnt/bootdisk/boot/
