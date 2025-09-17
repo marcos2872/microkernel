@@ -21,22 +21,22 @@ if [ ! -f disk.img ]; then
     qemu-img create -f raw disk.img 50M
 
     echo "🔧 Configurando partição..."
-    sudo losetup -P /dev/loop0 disk.img
-    echo -e "n\np\n1\n\n\na\nw\n" | sudo fdisk /dev/loop0 >/dev/null 2>&1
-    sudo partprobe /dev/loop0
-    sudo mkfs.ext2 /dev/loop0p1 >/dev/null 2>&1
+    LOOP_DEVICE=$(sudo losetup -f -P --show disk.img)
+    echo -e "n\np\n1\n\n\na\nw\n" | sudo fdisk $LOOP_DEVICE >/dev/null 2>&1
+    sudo partprobe $LOOP_DEVICE
+    sudo mkfs.ext2 ${LOOP_DEVICE}p1 >/dev/null 2>&1
 
     echo "📁 Criando estrutura de boot..."
     sudo mkdir -p /mnt/bootdisk
-    sudo mount /dev/loop0p1 /mnt/bootdisk
+    sudo mount ${LOOP_DEVICE}p1 /mnt/bootdisk
     sudo mkdir -p /mnt/bootdisk/boot/grub
 
     echo "⚙️ Configurando GRUB..."
     echo -e "set timeout=1\nset default=0\n\nmenuentry \"Microkernel Rust\" {\n    multiboot /boot/microkernel\n    boot\n}" | sudo tee /mnt/bootdisk/boot/grub/grub.cfg >/dev/null
 
-    sudo grub-install --target=i386-pc --boot-directory=/mnt/bootdisk/boot /dev/loop0 >/dev/null 2>&1
+    sudo grub-install --target=i386-pc --boot-directory=/mnt/bootdisk/boot $LOOP_DEVICE >/dev/null 2>&1
     sudo umount /mnt/bootdisk
-    sudo losetup -d /dev/loop0
+    sudo losetup -d $LOOP_DEVICE
 
     echo "✅ Imagem de disco criada com sucesso!"
 fi
@@ -45,21 +45,22 @@ fi
 echo "🔄 Atualizando kernel na imagem..."
 
 # Libera dispositivos loop ocupados se necessário
-if sudo losetup -a | grep -q disk.img; then
-    echo "⚠️  Liberando dispositivo loop ocupado..."
+EXISTING_LOOP=$(sudo losetup -j disk.img | cut -d: -f1)
+if [ ! -z "$EXISTING_LOOP" ]; then
+    echo "⚠️  Liberando dispositivo loop ocupado: $EXISTING_LOOP"
     sudo umount /mnt/bootdisk 2>/dev/null || true
-    sudo losetup -d /dev/loop0 2>/dev/null || true
+    sudo losetup -d $EXISTING_LOOP 2>/dev/null || true
 fi
 
 # Cria ponto de montagem se não existir
 sudo mkdir -p /mnt/bootdisk
 
 # Monta e atualiza o kernel
-sudo losetup -P /dev/loop0 disk.img
-sudo mount /dev/loop0p1 /mnt/bootdisk
+LOOP_DEVICE=$(sudo losetup -f -P --show disk.img)
+sudo mount ${LOOP_DEVICE}p1 /mnt/bootdisk
 sudo cp target/x86_64-unknown-none/release/microkernel /mnt/bootdisk/boot/
 sudo umount /mnt/bootdisk
-sudo losetup -d /dev/loop0
+sudo losetup -d $LOOP_DEVICE
 
 # Executa no QEMU
 echo "🚀 Iniciando microkernel no QEMU..."
